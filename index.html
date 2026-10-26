@@ -264,7 +264,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 function render(){let v;if(view.n==="detail")v=detailView(view.id);else if(view.n==="new")v=newView();else v=listView();root.replaceChildren(...v)}
 
 // ===== 密碼：這裡存的是密碼的 SHA-256 雜湊值，不是密碼本身 =====
-const PASSWORD_HASH="19dc5cce6684fccf3e2c7790e139908cf1d900f858e40a06cf8d6c98f8bbe1bd";
+const PASSWORD_HASH="99fe87bff5bfcb41eee807992f20018348c8af2a3716cd03c033459f4b81c6ad";
 async function sha256(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function unlockUI(){document.getElementById("gate").hidden=true;root.hidden=false;render()}
 async function tryUnlock(){const m=document.getElementById("gate-msg");m.textContent="";
