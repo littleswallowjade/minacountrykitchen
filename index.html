@@ -355,14 +355,14 @@ function openFaqModal(item){
   const form=el("form",{className:"faq-form"});
   const category=el("select",{required:true});
   const question=el("input",{type:"text",maxlength:180,required:true,placeholder:"例如：商品資訊內容是什麼？"});
-  const answer=el("textarea",{rows:5,required:true,placeholder:"商品資訊分類請勿直接寫死範例，請依實際商品資料生成內容。"});
+  const answer=el("textarea",{rows:5,required:true,placeholder:"可直接輸入答案；若留空，系統會依目前商品資料動態顯示。"});
   const keywords=el("input",{type:"text",placeholder:"關鍵字：商品資訊、類別、價格…"});
   const confirmed=el("input",{type:"checkbox",checked:true});
-  const note=el("p",{className:"note",textContent:"商品資訊類答案會依目前商品資料動態顯示，請勿自行編造價格、地址、規則或聯絡資訊。"});
+  const note=el("p",{className:"note",textContent:"可直接填寫答案，若留空則依目前商品資料動態顯示。"});
   const msg=el("p",{className:"msg",role:"alert"});
   const submit=el("button",{type:"submit",textContent:item?"儲存修改":"新增常見問題"});
   const cancel=el("button",{type:"button",className:"faq-btn",textContent:"取消",onclick:closeModal});
-  FAQ_CATEGORIES.forEach(cat=>category.append(el("option",{value:cat,textContent:cat})));
+  FAQ_CATEGORIES.forEach(cat=>category.append(el("option",{value:cat,textContent:cat}))); 
   form.append(
     el("label",{},"分類",category),
     el("label",{},"問題（必填）",question),
@@ -375,7 +375,7 @@ function openFaqModal(item){
   if(item){category.value=item.category||FAQ_CATEGORIES[0];question.value=item.question||"";answer.value=item.answer||"";keywords.value=normalizeKeywords(item.keywords).join("、");confirmed.checked=!!item.confirmed;}
   category.onchange=()=>{
     if(category.value==="商品資訊"){
-      answer.placeholder="商品資訊類會依目前商品資料動態產生內容，請不要直接填假資料。";
+      answer.placeholder="可直接輸入答案；若留空，系統會依目前商品資料動態顯示。";
       if(!item || item.category !== "商品資訊") answer.value = "";
     }else{
       answer.placeholder="請輸入正確且確認過的答案。";
@@ -413,7 +413,7 @@ function openFaqModal(item){
 function faqView(){
   const section=el("section",{className:"faq-shell"});
   const head=el("div",{className:"faq-head"},el("h2",{textContent:"商家端常見問題助手"}),el("button",{type:"button",className:"chip",textContent:"＋ 新增問題",onclick:()=>openFaqModal()}));
-  const note=el("p",{className:"faq-note",textContent:"這裡是商家管理頁面，專門用來新增、編輯與確認常見問題。商品資訊類會依實際商品資料動態顯示，不會直接重複假資料。"});
+  const note=el("p",{className:"faq-note",textContent:"這裡是商家管理頁面，專門用來新增、編輯與確認常見問題。可直接輸入答案，若留空則依目前商品資料動態顯示。"});
   const storageNote=el("p",{className:"faq-storage",textContent:"資料儲存在這台瀏覽器的 localStorage，僅作本機保存，不跨裝置同步，且清除瀏覽器資料後會消失。"});
   const search=el("input",{type:"search",placeholder:"搜尋問題、答案或關鍵字"});
   const categoryFilter=el("select",{},el("option",{value:"全部",textContent:"全部分類"}),...FAQ_CATEGORIES.map(c=>el("option",{value:c,textContent:c})));
