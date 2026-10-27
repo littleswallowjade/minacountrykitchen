@@ -94,7 +94,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .faq-storage{margin:0;color:var(--sub);font-size:.8rem}
 .faq-keywords{display:flex;flex-wrap:wrap;gap:.4rem}
 .faq-keyword{display:inline-block;padding:.1rem .5rem;background:var(--bg);border:1px solid var(--line);border-radius:999px;font-size:.74rem;color:var(--sub)}
-@media (prefers-color-scheme:dark){.faq-badge,.faq-status-badge.pending{background:#5a4620;color:#f5deb0}.faq-status-badge.confirmed{background:#224830;color:#dcefe0}.faq-item{background:#1b221d}.faq-q:hover{background:rgba(255,255,255,.02)}.faq-empty{background:rgba(255,255,255,.02)}}
+@media (prefers-color-scheme:dark){.faq-badge,.faq-status-badge.pending{background:#5a4620;color:#f5deb0}.faq-status-badge.confirmed{background:#224830;color:#dcefe0}.faq-item{background:#1b221d}.faq-answer-box{background:#1f2622}.faq-q:hover{background:rgba(255,255,255,.03)}}
 </style></head><body>
 <main class="gate" id="gate"><h1>商品記錄</h1><p>請輸入密碼後查看。</p>
 <div class="row"><label for="pw" class="sr">密碼</label><input id="pw" type="password" autocomplete="current-password"><button id="unlock" type="button">解鎖</button></div>
@@ -139,7 +139,7 @@ const fmtTime=t=>new Date(t).toLocaleString("zh-TW",{hour12:false});
 function logView(pid){const logs=loadLog().filter(x=>x.pid===pid).sort((a,b)=>b.t-a.t);
   const wrap=el("section",{className:"log"},el("h3",{textContent:"修改紀錄"}));
   if(!logs.length){wrap.append(el("p",{className:"note",textContent:"尚無修改紀錄。"}));return wrap}
-  logs.forEach(l=>{const ul=el("ul",{});l.changes.forEach(c=>ul.append(el("li",{textContent:c.f+"：「"+c.from+"」→「"+c.to+"」"})));
+  logs.forEach(l=>{const ul=el("ul",{});l.changes.forEach(c=>ul.append(el("li",{textContent:c.f+"：「"+c.from+"」→「"+c.to+"」"}))); 
     wrap.append(el("div",{className:"logitem"},el("div",{className:"cat",textContent:fmtTime(l.t)+(l.batch?"（批次修改）":"")}),ul))});
   return wrap}
 
@@ -156,7 +156,7 @@ function findSimilar(raw){const a=normName(raw);if(!a)return [];const out=[];
 
 const anyPending=p=>PFIELDS.some(k=>isPending(p,k));
 function buildCsv(items){const H=["商品名稱","分類","供應狀態","價格","說明","成分","價格確認狀態","說明確認狀態","成分確認狀態"];
-  const cell=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const cell=v=>"\""+String(v==null?"":v).replace(/"/g,'""')+"\"";
   const t=v=>hasVal(v)?String(v).trim():"";
   const rows=items.map(p=>[t(p.name),p.cat||"未分類",STATUSES.includes(p.status)?p.status:"待確認",t(p.price),t(p.description),t(p.ingredients)].concat(PFIELDS.map(k=>isPending(p,k)?"待確認":"已確認")));
   return [H].concat(rows).map(r=>r.map(cell).join(",")).join("\r\n")}
@@ -272,7 +272,7 @@ function newView(p){
     if(!p&&!warned){const d=findSimilar(name.value);if(d.length){showWarn(d);return}}
     const pending={};PFIELDS.forEach(k=>{pending[k]=!hasVal(inputs[k].value)||cbs[k].checked});
     const data={name:name.value.trim(),cat:cat.value,status:st.value,price:price.value,description:desc.value,ingredients:ing.value,pending:pending};
-    if(p){const old=all().find(x=>x.id===p.id)||p;const ch=diffProduct(old,Object.assign({},old,data));updateProduct(p.id,data);if(ch.length)addLog(p.id,data.name,ch,false)}else{const a=loadAdded();const id="u"+Date.now()+Math.random().toString(16).slice(2,8);a.push(Object.assign({id:id},data));saveAdded(a)}
+    if(p){const old=all().find(x=>x.id===p.id)||p;const ch=diffProduct(old,Object.assign({},old,data));updateProduct(p.id,data);if(ch.length)addLog(p.id,data.name,ch,false)}else{const a=loadAdded();a.push(Object.assign({id:"u"+Date.now()+Math.random().toString(16).slice(2)},data));saveAdded(a);}
     closeModal();render();}
   return [el("p",{},lnk("← 回商品清單",()=>go("list"))),el("h1",{textContent:"新增商品"}),form];
 }
@@ -287,7 +287,7 @@ function openModal(p){closeModal();const form=newView(p)[2];const title=p?"修�
 function openExport(items){closeModal();const csv=buildCsv(items);
   const ta=el("textarea",{readOnly:true,rows:8,value:csv,id:"csvtext"});ta.setAttribute("aria-label","匯出內容");
   const d=new Date(),ymd=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
-  const dl=el("button",{type:"button",id:"dlcsv",textContent:"下載 CSV 檔",onclick:()=>{const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=el("a",{href:url,download:"bakery_items_"+ymd+".csv"});document.body.append(a);a.click();a.remove();URL.revokeObjectURL(url)}});
+  const dl=el("button",{type:"button",id:"dlcsv",textContent:"下載 CSV 檔",onclick:()=>{const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=el("a",{href:url,download:"商品匯出_"+ymd+".csv"});document.body.append(a);a.click();a.remove();URL.revokeObjectURL(url)}});
   const box=el("div",{className:"box",role:"dialog"},el("h2",{textContent:"匯出所選商品（"+items.length+" 項）"}),dl,
     el("p",{className:"note",textContent:"如果下載沒有反應，可以複製下面的內容，貼到記事本並存成 .csv 檔。"}),ta,
     el("button",{type:"button",className:"chip",textContent:"關閉",onclick:closeModal}));
@@ -303,16 +303,16 @@ const FAQ_CATEGORIES=["商品資訊","更改資訊"];
 const FAQ_DEMO=[
   {id:"faq-demo-product",category:"商品資訊",question:"商品資訊內容是什麼？",answer:"",keywords:["商品資訊","商品詳細頁","類別","供應狀態","價格","說明","成分"],confirmed:true,isDemo:true},
   {id:"faq-demo-product-view",category:"商品資訊",question:"怎麼查看商品資訊？",answer:"",keywords:["查看商品資訊","商品名稱","商品詳細頁","類別","價格"],confirmed:true,isDemo:true},
-  {id:"faq-demo-change-1",category:"更改資訊",question:"如何新增商品？",answer:"1. 點擊商品管理頁面右上角的「新增商品」按鈕。\n2. 系統會跳出新增商品的視窗。\n3. 填寫商品名稱及其他商品資訊。\n4. 完成後，按下「儲存商品」。",keywords:["新增商品","建立商品","商品名稱","待確認","儲存商品"],confirmed:true,isDemo:true},
-  {id:"faq-demo-change-2",category:"更改資訊",question:"如何修改商品資訊？",answer:"1. 點進要修改的商品詳細頁。\n2. 點擊下方的「修改商品」按鈕。\n3. 修改完成後，按下「儲存商品」。",keywords:["修改商品","編輯商品","商品資訊","儲存商品","待確認"],confirmed:true,isDemo:true}
+  {id:"faq-demo-change-1",category:"更改資訊",question:"如何新增商品？",answer:"1. 點擊商品管理頁面右上角的「新增商品」按鈕。\n2. 系統會跳出新增商品的視窗。\n3. 填寫商品名稱與資料後，點擊「儲存商品」。",keywords:["新增商品","商品管理","新增"],confirmed:true,isDemo:true},
+  {id:"faq-demo-change-2",category:"更改資訊",question:"如何修改商品資訊？",answer:"1. 點進要修改的商品詳細頁。\n2. 點擊下方的「修改商品」按鈕。\n3. 修改完成後儲存即可。",keywords:["修改商品","商品資訊","更改"],confirmed:true,isDemo:true}
 ];
 function loadFaqs(){try{const raw=localStorage.getItem(FAQ_KEY);if(!raw)return FAQ_DEMO.slice();const data=JSON.parse(raw);return Array.isArray(data)&&data.length?data:FAQ_DEMO.slice();}catch(e){return FAQ_DEMO.slice();}}
 function saveFaqs(items){try{localStorage.setItem(FAQ_KEY,JSON.stringify(items));return true;}catch(e){return false;}}
 function getCurrentProductInfo(){
   const list=all();
   if(!list.length)return null;
-  const selectedId = view.n==="detail" ? view.id : null;
-  return list.find(p=>p.id===selectedId) || list[0];
+  if(view.n !== "detail" || !view.id) return null;
+  return list.find(p=>p.id===view.id) || null;
 }
 function buildProductInfoAnswerFromData(product){
   if(!product)return "目前沒有可用的商品資料。";
@@ -337,7 +337,12 @@ function buildProductInfoAnswerFromData(product){
   ].join("\n");
 }
 function resolveFaqAnswer(item){
-  if(item.category==="商品資訊")return buildProductInfoAnswerFromData(getCurrentProductInfo());
+  if(item.category==="商品資訊"){
+    const product=getCurrentProductInfo();
+    if(product) return buildProductInfoAnswerFromData(product);
+    if(item.answer && item.answer.trim()) return item.answer.trim();
+    return "請先進入某個商品的詳細頁，系統才會依該商品資料動態顯示商品資訊。";
+  }
   return item.answer || "待確認";
 }
 function normalizeKeywords(value){
@@ -408,7 +413,7 @@ function openFaqModal(item){
 function faqView(){
   const section=el("section",{className:"faq-shell"});
   const head=el("div",{className:"faq-head"},el("h2",{textContent:"商家端常見問題助手"}),el("button",{type:"button",className:"chip",textContent:"＋ 新增問題",onclick:()=>openFaqModal()}));
-  const note=el("p",{className:"faq-note",textContent:"這裡是商家管理頁面，專門用來新增、編輯與確認常見問題。商品資訊類會依實際商品資料動態顯示，不會直接寫死示範內容。"});
+  const note=el("p",{className:"faq-note",textContent:"這裡是商家管理頁面，專門用來新增、編輯與確認常見問題。商品資訊類會依實際商品資料動態顯示，不會直接重複假資料。"});
   const storageNote=el("p",{className:"faq-storage",textContent:"資料儲存在這台瀏覽器的 localStorage，僅作本機保存，不跨裝置同步，且清除瀏覽器資料後會消失。"});
   const search=el("input",{type:"search",placeholder:"搜尋問題、答案或關鍵字"});
   const categoryFilter=el("select",{},el("option",{value:"全部",textContent:"全部分類"}),...FAQ_CATEGORIES.map(c=>el("option",{value:c,textContent:c})));
