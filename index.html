@@ -301,7 +301,8 @@ function render(){let v;if(view.n==="detail")v=detailView(view.id);else if(view.
 const FAQ_KEY="bakery-faq-merchant-v1";
 const FAQ_CATEGORIES=["商品資訊","更改資訊"];
 const FAQ_DEMO=[
-  {id:"faq-demo-product",category:"商品資訊",question:"商品資訊要去哪裡查看？",answer:"",keywords:["商品資訊","商品詳細頁","類別","供應狀態","價格","說明","成分"],confirmed:true,isDemo:true},
+  {id:"faq-demo-product",category:"商品資訊",question:"商品資訊內容是什麼？",answer:"",keywords:["商品資訊","商品詳細頁","類別","供應狀態","價格","說明","成分"],confirmed:true,isDemo:true},
+  {id:"faq-demo-product-view",category:"商品資訊",question:"怎麼查看商品資訊？",answer:"",keywords:["查看商品資訊","商品名稱","商品詳細頁","類別","價格"],confirmed:true,isDemo:true},
   {id:"faq-demo-change-1",category:"更改資訊",question:"如何新增商品？",answer:"1. 點擊商品管理頁面右上角的「新增商品」按鈕。\n2. 系統會跳出新增商品的視窗。\n3. 填寫商品名稱及其他商品資訊。\n4. 完成後，按下「儲存商品」。",keywords:["新增商品","建立商品","商品名稱","待確認","儲存商品"],confirmed:true,isDemo:true},
   {id:"faq-demo-change-2",category:"更改資訊",question:"如何修改商品資訊？",answer:"1. 點進要修改的商品詳細頁。\n2. 點擊下方的「修改商品」按鈕。\n3. 修改完成後，按下「儲存商品」。",keywords:["修改商品","編輯商品","商品資訊","儲存商品","待確認"],confirmed:true,isDemo:true}
 ];
@@ -322,13 +323,17 @@ function buildProductInfoAnswerFromData(product){
   const description=hasVal(product.description)?String(product.description).trim():"待確認";
   const ingredients=hasVal(product.ingredients)?String(product.ingredients).trim():"待確認";
   return [
-    name,
+    "商品資訊內容包含：類別、供應狀態、價格、說明、成分。",
+    "點選商品名稱進入商品詳細頁，即可查看這些內容。",
     "",
+    name,
     `- 類別：${cat}`,
     `- 供應狀態：${status}`,
     `- 價格：${price}`,
     `- 說明：${description}`,
-    `- 成分：${ingredients}`
+    `- 成分：${ingredients}`,
+    "",
+    "實際內容會依目前商品資料動態顯示，並非固定範例。"
   ].join("\n");
 }
 function resolveFaqAnswer(item){
@@ -344,7 +349,7 @@ function openFaqModal(item){
   closeModal();
   const form=el("form",{className:"faq-form"});
   const category=el("select",{required:true});
-  const question=el("input",{type:"text",maxlength:180,required:true,placeholder:"例如：商品資訊要去哪裡查看？"});
+  const question=el("input",{type:"text",maxlength:180,required:true,placeholder:"例如：商品資訊內容是什麼？"});
   const answer=el("textarea",{rows:5,required:true,placeholder:"商品資訊分類請勿直接寫死範例，請依實際商品資料生成內容。"});
   const keywords=el("input",{type:"text",placeholder:"關鍵字：商品資訊、類別、價格…"});
   const confirmed=el("input",{type:"checkbox",checked:true});
