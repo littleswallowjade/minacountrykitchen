@@ -2,6 +2,7 @@
 <html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow"><title>商品記錄</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>:root{--bg:#f2f4f1;--ink:#1f2a25;--sub:#5b6a63;--line:#cfd6d1;--card:#fff;--accent:#7a4b22}
 @media (prefers-color-scheme:dark){:root{--bg:#171c19;--ink:#e8ede9;--sub:#9aa8a1;--line:#2f3a34;--card:#1f2622;--accent:#d9a066}}
 *{box-sizing:border-box}
@@ -101,7 +102,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <p id="gate-msg" class="msg" role="alert"></p></main>
 <main class="app" id="root" hidden></main>
 <script>
-// ===== 商品與分類資料（目前都是假資料，請替換成真實內容）=====
 const TBC="待確認", KEY="bakery-products";
 const STATUSES=["正常供應","暫停供應","季節限定"];
 const CATS=["麵包（示範）","蛋糕（示範）","餅乾（示範）"];
@@ -296,7 +296,9 @@ function openExport(items){closeModal();const csv=buildCsv(items);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 function render(){let v;if(view.n==="detail")v=detailView(view.id);else if(view.n==="new")v=newView();else v=listView();root.replaceChildren(...v,faqView())}
 
-// ===== 商家端常見問題助手（僅在商家頁面中使用） =====
+const FAQ_SUPABASE_URL="";
+const FAQ_SUPABASE_ANON_KEY="";
+const FAQ_CLIENT = FAQ_SUPABASE_URL && FAQ_SUPABASE_ANON_KEY ? window.supabase.createClient(FAQ_SUPABASE_URL, FAQ_SUPABASE_ANON_KEY) : null;
 const FAQ_KEY="bakery-faq-merchant-v1";
 const FAQ_CATEGORIES=["商品資訊","更改資訊"];
 const FAQ_DEMO=[
@@ -305,8 +307,41 @@ const FAQ_DEMO=[
   {id:"faq-demo-change-1",category:"更改資訊",question:"如何新增商品？",answer:"1. 點擊商品管理頁面右上角的「新增商品」按鈕。\n2. 系統會跳出新增商品的視窗。\n3. 填寫商品名稱與資料後，點擊「儲存商品」。",keywords:["新增商品","商品管理","新增"],confirmed:true,isDemo:true},
   {id:"faq-demo-change-2",category:"更改資訊",question:"如何修改商品資訊？",answer:"1. 點進要修改的商品詳細頁。\n2. 點擊下方的「修改商品」按鈕。\n3. 修改完成後儲存即可。",keywords:["修改商品","商品資訊","更改"],confirmed:true,isDemo:true}
 ];
-function loadFaqs(){try{const raw=localStorage.getItem(FAQ_KEY);if(!raw)return FAQ_DEMO.slice();const data=JSON.parse(raw);return Array.isArray(data)&&data.length?data:FAQ_DEMO.slice();}catch(e){return FAQ_DEMO.slice();}}
-function saveFaqs(items){try{localStorage.setItem(FAQ_KEY,JSON.stringify(items));return true;}catch(e){return false;}}
+async function loadFaqs(){
+  if(FAQ_CLIENT){
+    const {data,error}=await FAQ_CLIENT.from("faq_items").select("*").order("created_at",{ascending:false});
+    if(!error && Array.isArray(data) && data.length){
+      return data.map(item=>({
+        id:item.id,
+        category:item.category,
+        question:item.question,
+        answer:item.answer||"",
+        keywords:Array.isArray(item.keywords)?item.keywords:[],
+        confirmed:!!item.confirmed,
+        isDemo:!!item.is_demo
+      }));
+    }
+  }
+  try{const raw=localStorage.getItem(FAQ_KEY);if(raw){const data=JSON.parse(raw);if(Array.isArray(data)&&data.length)return data;}}catch(e){}
+  return FAQ_DEMO.slice();
+}
+async function saveFaqs(items){
+  if(FAQ_CLIENT){
+    const rows=items.map(item=>({
+      id:item.id,
+      category:item.category,
+      question:item.question,
+      answer:item.answer||"",
+      keywords:item.keywords||[],
+      confirmed:!!item.confirmed,
+      is_demo:!!item.isDemo,
+      created_at:new Date().toISOString()
+    }));
+    const {error}=await FAQ_CLIENT.from("faq_items").upsert(rows,{onConflict:"id"});
+    if(!error) return true;
+  }
+  try{localStorage.setItem(FAQ_KEY,JSON.stringify(items));return true;}catch(e){return false;}
+}
 function getCurrentProductInfo(){
   const list=all();
   if(!list.length)return null;
@@ -382,8 +417,7 @@ function openFaqModal(item){
       if(!item || item.category !== "更改資訊") answer.value = "";
     }
   };
-  form.onsubmit=e=>{
-    e.preventDefault();
+  form.onsubmit=e=>{e.preventDefault();
     const cat=category.value;
     const q=question.value.trim();
     const a=answer.value.trim();
@@ -392,19 +426,10 @@ function openFaqModal(item){
     if(!q){msg.textContent="請填寫問題。";return}
     if(!a && cat!=="商品資訊"){msg.textContent="請填寫答案。";return}
     const data=loadFaqs();
-    const next={
-      id:item?item.id:("faq-"+Date.now()+Math.random().toString(16).slice(2,8)),
-      category:cat,
-      question:q,
-      answer:a,
-      keywords:kw,
-      confirmed:confirmed.checked,
-      isDemo:false
-    };
+    const next={id:item?item.id:("faq-"+Date.now()+Math.random().toString(16).slice(2,8)), category:cat, question:q, answer:a, keywords:kw, confirmed:confirmed.checked, isDemo:false};
     const idx=data.findIndex(x=>x.id===item?.id);
     if(idx>=0){data[idx]=Object.assign({},data[idx],next);}else{data.unshift(next);}
-    if(!saveFaqs(data)){msg.textContent="瀏覽器儲存失敗，請確認儲存空間後再試。";return}
-    closeModal();render();
+    saveFaqs(data).then(ok=>{if(!ok){msg.textContent="儲存失敗，請確認瀏覽器或 Supabase 設定。";return}closeModal();render();}).catch(()=>{msg.textContent="儲存失敗，請確認瀏覽器或 Supabase 設定。";});
   };
   const box=el("div",{className:"box faq-modal",role:"dialog"},el("h2",{textContent:item?"修改常見問題":"新增常見問題"}),form);
   box.setAttribute("aria-modal","true");box.setAttribute("aria-label",item?"修改常見問題":"新增常見問題");
@@ -414,7 +439,7 @@ function faqView(){
   const section=el("section",{className:"faq-shell"});
   const head=el("div",{className:"faq-head"},el("h2",{textContent:"商家端常見問題助手"}),el("button",{type:"button",className:"chip",textContent:"＋ 新增問題",onclick:()=>openFaqModal()}));
   const note=el("p",{className:"faq-note",textContent:"這裡是商家管理頁面，專門用來新增、編輯與確認常見問題。可直接輸入答案，若留空則依目前商品資料動態顯示。"});
-  const storageNote=el("p",{className:"faq-storage",textContent:"資料儲存在這台瀏覽器的 localStorage，僅作本機保存，不跨裝置同步，且清除瀏覽器資料後會消失。"});
+  const storageNote=el("p",{className:"faq-storage",textContent:"如果未設定 Supabase，資料會保存到這台瀏覽器的 localStorage；設定後會優先使用 Supabase，並可跨裝置同步。"});
   const search=el("input",{type:"search",placeholder:"搜尋問題、答案或關鍵字"});
   const categoryFilter=el("select",{},el("option",{value:"全部",textContent:"全部分類"}),...FAQ_CATEGORIES.map(c=>el("option",{value:c,textContent:c})));
   const toolbar=el("div",{className:"faq-toolbar"},search,categoryFilter);
@@ -422,45 +447,48 @@ function faqView(){
   function renderList(){
     const query=search.value.trim().toLowerCase();
     const category=categoryFilter.value;
-    const items=loadFaqs().filter(item=>{
-      const matchCat=category==="全部"||item.category===category;
-      const haystack=[item.question,item.answer,(item.keywords||[]).join(" "),item.category].join(" ").toLowerCase();
-      return matchCat && (!query || haystack.includes(query));
-    });
-    list.replaceChildren();
-    if(!items.length){
-      list.append(el("div",{className:"faq-empty",textContent:query?"沒有符合條件的常見問題。":"目前沒有常見問題資料，請新增第一筆。"}));
-      return;
-    }
-    items.forEach(item=>{
-      const card=el("article",{className:"faq-item"});
-      const button=el("button",{type:"button",className:"faq-q"});
-      const q=el("span",{className:"faq-q-text",textContent:item.question||"未命名問題"});
-      const meta=el("span",{className:"faq-q-actions"},
-        el("span",{className:"faq-badge",textContent:item.category||"未分類"}),
-        el("span",{className:"faq-status-badge "+(item.confirmed?"confirmed":"pending"),textContent:item.confirmed?"已確認":"待確認"}),
-        el("span",{className:"chevron",textContent:"▾"})
-      );
-      button.append(el("span",{className:"faq-q-main"},q),meta);
-      const answerWrap=el("div",{className:"faq-answer"});
-      const answerText=resolveFaqAnswer(item);
-      const answerBox=el("div",{className:"faq-answer-box"},
-        el("div",{className:"faq-meta"},
+    let items=[];
+    loadFaqs().then(data=>{
+      items=data.filter(item=>{
+        const matchCat=category==="全部"||item.category===category;
+        const haystack=[item.question,item.answer,(item.keywords||[]).join(" "),item.category].join(" ").toLowerCase();
+        return matchCat && (!query || haystack.includes(query));
+      });
+      list.replaceChildren();
+      if(!items.length){
+        list.append(el("div",{className:"faq-empty",textContent:query?"沒有符合條件的常見問題。":"目前沒有常見問題資料，請新增第一筆。"}));
+        return;
+      }
+      items.forEach(item=>{
+        const card=el("article",{className:"faq-item"});
+        const button=el("button",{type:"button",className:"faq-q"});
+        const q=el("span",{className:"faq-q-text",textContent:item.question||"未命名問題"});
+        const meta=el("span",{className:"faq-q-actions"},
           el("span",{className:"faq-badge",textContent:item.category||"未分類"}),
-          el("span",{className:"faq-status-badge "+(item.confirmed?"confirmed":"pending"),textContent:item.confirmed?"已確認":"待確認"})
-        ),
-        el("p",{textContent:answerText})
-      );
-      const kwWrap=el("div",{className:"faq-keywords"},...(normalizeKeywords(item.keywords).map(k=>el("span",{className:"faq-keyword",textContent:k}))));
-      const actions=el("div",{className:"faq-actions"},
-        el("button",{type:"button",className:"faq-btn",textContent:"編輯",onclick:()=>openFaqModal(item)}),
-        el("button",{type:"button",className:"faq-btn danger",textContent:"刪除",onclick:()=>{const d=loadFaqs().filter(x=>x.id!==item.id);if(!saveFaqs(d))return;render();}})
-      );
-      answerWrap.append(answerBox,kwWrap,actions);
-      button.onclick=()=>card.classList.toggle("open");
-      card.append(button,answerWrap);
-      list.append(card);
-    });
+          el("span",{className:"faq-status-badge "+(item.confirmed?"confirmed":"pending"),textContent:item.confirmed?"已確認":"待確認"}),
+          el("span",{className:"chevron",textContent:"▾"})
+        );
+        button.append(el("span",{className:"faq-q-main"},q),meta);
+        const answerWrap=el("div",{className:"faq-answer"});
+        const answerText=resolveFaqAnswer(item);
+        const answerBox=el("div",{className:"faq-answer-box"},
+          el("div",{className:"faq-meta"},
+            el("span",{className:"faq-badge",textContent:item.category||"未分類"}),
+            el("span",{className:"faq-status-badge "+(item.confirmed?"confirmed":"pending"),textContent:item.confirmed?"已確認":"待確認"})
+          ),
+          el("p",{textContent:answerText})
+        );
+        const kwWrap=el("div",{className:"faq-keywords"},...(normalizeKeywords(item.keywords).map(k=>el("span",{className:"faq-keyword",textContent:k}))));
+        const actions=el("div",{className:"faq-actions"},
+          el("button",{type:"button",className:"faq-btn",textContent:"編輯",onclick:()=>openFaqModal(item)}),
+          el("button",{type:"button",className:"faq-btn danger",textContent:"刪除",onclick:()=>{const d=loadFaqs().then(data=>{const filtered=data.filter(x=>x.id!==item.id);saveFaqs(filtered).then(ok=>{if(ok)render();});});}})
+        );
+        answerWrap.append(answerBox,kwWrap,actions);
+        button.onclick=()=>card.classList.toggle("open");
+        card.append(button,answerWrap);
+        list.append(card);
+      });
+    }).catch(()=>{list.replaceChildren(el("div",{className:"faq-empty",textContent:"載入常見問題時發生錯誤。"}));});
   }
   search.oninput=renderList;
   categoryFilter.onchange=renderList;
@@ -469,7 +497,6 @@ function faqView(){
   return section;
 }
 
-// ===== 密碼：這裡存的是密碼的 SHA-256 雜湊值，不是密碼本身 =====
 const PASSWORD_HASH="99fe87bff5bfcb41eee807992f20018348c8af2a3716cd03c033459f4b81c6ad";
 async function sha256(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function unlockUI(){document.getElementById("gate").hidden=true;root.hidden=false;render()}
@@ -480,5 +507,4 @@ async function tryUnlock(){const m=document.getElementById("gate-msg");m.textCon
 document.getElementById("unlock").onclick=tryUnlock;
 document.getElementById("pw").addEventListener("keydown",e=>{if(e.key==="Enter")tryUnlock()});
 try{if(sessionStorage.getItem("unlocked")==="1")unlockUI()}catch(e){}
-
 </script></body></html>
