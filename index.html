@@ -79,7 +79,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .faq-answer{display:none;padding:0 1rem 1rem}
 .faq-item.open .faq-answer{display:block}
 .faq-answer-box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.8rem .9rem;display:grid;gap:.75rem}
-.faq-answer p{margin:0;white-space:pre-line;overflow-wrap:anywhere}
+.faq-answer-box p{margin:0;white-space:pre-line;overflow-wrap:anywhere}
 .faq-meta{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
 .faq-badge,.faq-status-badge{display:inline-block;padding:.15rem .55rem;border-radius:999px;font-size:.75rem;line-height:1.5;white-space:nowrap}
 .faq-badge{background:#f0e0c8;color:#5a3b00}
@@ -92,6 +92,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .faq-btn{background:var(--card);color:var(--ink);border:1px solid var(--line)}
 .faq-btn.danger{background:#b3261e;color:#fff;border-color:#b3261e}
 .faq-storage{margin:0;color:var(--sub);font-size:.8rem}
+.faq-keywords{display:flex;flex-wrap:wrap;gap:.4rem}
+.faq-keyword{display:inline-block;padding:.1rem .5rem;background:var(--bg);border:1px solid var(--line);border-radius:999px;font-size:.74rem;color:var(--sub)}
 @media (prefers-color-scheme:dark){.faq-badge,.faq-status-badge.pending{background:#5a4620;color:#f5deb0}.faq-status-badge.confirmed{background:#224830;color:#dcefe0}.faq-item{background:#1b221d}.faq-q:hover{background:rgba(255,255,255,.02)}.faq-empty{background:rgba(255,255,255,.02)}}
 </style></head><body>
 <main class="gate" id="gate"><h1>商品記錄</h1><p>請輸入密碼後查看。</p>
@@ -101,6 +103,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <script>
 // ===== 商品與分類資料（目前都是假資料，請替換成真實內容）=====
 const TBC="待確認", KEY="bakery-products";
+// 供應狀態選項：要新增狀態，直接在這個清單加文字即可（顏色另見 stClass）
 const STATUSES=["正常供應","暫停供應","季節限定"];
 const CATS=["麵包（示範）","蛋糕（示範）","餅乾（示範）"];
 const SEED=[
@@ -294,130 +297,169 @@ function openExport(items){closeModal();const csv=buildCsv(items);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 function render(){let v;if(view.n==="detail")v=detailView(view.id);else if(view.n==="new")v=newView();else v=listView();root.replaceChildren(...v,faqView())}
 
-const FAQ_KEY="bakery-faq-v1";
-const FAQ_CATEGORIES=[{id:"all",label:"全部"},{id:"order",label:"訂購方式"},{id:"payment",label:"付款方式"},{id:"delivery",label:"取貨與配送"},{id:"storage",label:"商品保存"}];
-const FAQ_LABELS={order:"訂購方式",payment:"付款方式",delivery:"取貨與配送",storage:"商品保存"};
+// ===== 商家端常見問題助手（僅在商家頁面中使用） =====
+const FAQ_KEY="bakery-faq-merchant-v1";
+const FAQ_CATEGORIES=["商品資訊","更改資訊"];
 const FAQ_DEMO=[
-  {id:"faq-demo-1",category:"order",question:"如何下訂？",answer:"請先選擇商品與數量後，再依照訂單頁面顯示的步驟完成送出。若內容不明，請先確認訂單資訊再提交。",answerStatus:"待確認",isDemo:true},
-  {id:"faq-demo-2",category:"payment",question:"付款方式有哪些？",answer:"付款方式請以實際訂單頁面或店家公告為準，未確認資料一律保留為『待確認』。",answerStatus:"待確認",isDemo:true},
-  {id:"faq-demo-3",category:"delivery",question:"可以自取嗎？",answer:"取貨方式需依實際店內公告與訂單內容為準；未核實內容會標記為『待確認』。",answerStatus:"待確認",isDemo:true},
-  {id:"faq-demo-4",category:"storage",question:"商品保存方式為何？",answer:"商品保存方式請依商品包裝與實際說明為準，未確認內容將標記為『待確認』。",answerStatus:"待確認",isDemo:true}
+  {id:"faq-demo-product",category:"商品資訊",question:"商品資訊要去哪裡查看？",answer:"",keywords:["商品資訊","商品詳細頁","類別","供應狀態","價格","說明","成分"],confirmed:true,isDemo:true},
+  {id:"faq-demo-change-1",category:"更改資訊",question:"如何新增商品？",answer:"1. 點擊商品管理頁面右上角的「新增商品」按鈕。\n2. 系統會跳出新增商品的視窗。\n3. 填寫商品名稱及其他商品資訊。\n4. 完成後，按下「儲存商品」。",keywords:["新增商品","建立商品","商品名稱","待確認","儲存商品"],confirmed:true,isDemo:true},
+  {id:"faq-demo-change-2",category:"更改資訊",question:"如何修改商品資訊？",answer:"1. 點進要修改的商品詳細頁。\n2. 點擊下方的「修改商品」按鈕。\n3. 修改完成後，按下「儲存商品」。",keywords:["修改商品","編輯商品","商品資訊","儲存商品","待確認"],confirmed:true,isDemo:true}
 ];
-function loadFaq(){try{const raw=localStorage.getItem(FAQ_KEY);if(!raw)return FAQ_DEMO.slice();const data=JSON.parse(raw);return Array.isArray(data)&&data.length?data:FAQ_DEMO.slice();}catch(e){return FAQ_DEMO.slice();}}
-function saveFaq(items){try{localStorage.setItem(FAQ_KEY,JSON.stringify(items));return true;}catch(e){return false;}}
+function loadFaqs(){try{const raw=localStorage.getItem(FAQ_KEY);if(!raw)return FAQ_DEMO.slice();const data=JSON.parse(raw);return Array.isArray(data)&&data.length?data:FAQ_DEMO.slice();}catch(e){return FAQ_DEMO.slice();}}
+function saveFaqs(items){try{localStorage.setItem(FAQ_KEY,JSON.stringify(items));return true;}catch(e){return false;}}
+function getCurrentProductInfo(){
+  const list=all();
+  if(!list.length)return null;
+  const selectedId = view.n==="detail" ? view.id : null;
+  return list.find(p=>p.id===selectedId) || list[0];
+}
+function buildProductInfoAnswerFromData(product){
+  if(!product)return "目前沒有可用的商品資料。";
+  const name=f(product.name||"未命名商品");
+  const cat=product.cat||"未分類";
+  const status=product.status||"待確認";
+  const price=hasVal(product.price)?String(product.price).trim():"待確認";
+  const description=hasVal(product.description)?String(product.description).trim():"待確認";
+  const ingredients=hasVal(product.ingredients)?String(product.ingredients).trim():"待確認";
+  return [
+    name,
+    "",
+    `- 類別：${cat}`,
+    `- 供應狀態：${status}`,
+    `- 價格：${price}`,
+    `- 說明：${description}`,
+    `- 成分：${ingredients}`
+  ].join("\n");
+}
+function resolveFaqAnswer(item){
+  if(item.category==="商品資訊")return buildProductInfoAnswerFromData(getCurrentProductInfo());
+  return item.answer || "待確認";
+}
+function normalizeKeywords(value){
+  if(Array.isArray(value))return value.filter(Boolean).map(String).map(v=>v.trim()).filter(Boolean);
+  if(typeof value ==="string")return value.split(/[、,，\s]+/).map(v=>v.trim()).filter(Boolean);
+  return [];
+}
 function openFaqModal(item){
   closeModal();
   const form=el("form",{className:"faq-form"});
   const category=el("select",{required:true});
-  const question=el("input",{type:"text",maxlength:120,required:true,placeholder:"例如：付款方式有哪些？"});
-  const answer=el("textarea",{rows:5,required:true,placeholder:"請輸入答案，未確認內容請保留『待確認』。"});
-  const pending=el("input",{type:"checkbox",checked:true});
-  const info=el("p",{className:"note",textContent:"未確認的答案請保持『待確認』，不得自行編造烘焙房規則、價格、地址或聯絡資訊。"});
+  const question=el("input",{type:"text",maxlength:180,required:true,placeholder:"例如：商品資訊要去哪裡查看？"});
+  const answer=el("textarea",{rows:5,required:true,placeholder:"商品資訊分類請勿直接寫死範例，請依實際商品資料生成內容。"});
+  const keywords=el("input",{type:"text",placeholder:"關鍵字：商品資訊、類別、價格…"});
+  const confirmed=el("input",{type:"checkbox",checked:true});
+  const note=el("p",{className:"note",textContent:"商品資訊類答案會依目前商品資料動態顯示，請勿自行編造價格、地址、規則或聯絡資訊。"});
   const msg=el("p",{className:"msg",role:"alert"});
-  const submit=el("button",{type:"submit",textContent:item?"儲存修改":"新增問答"});
+  const submit=el("button",{type:"submit",textContent:item?"儲存修改":"新增常見問題"});
   const cancel=el("button",{type:"button",className:"faq-btn",textContent:"取消",onclick:closeModal});
-  const catOptions=FAQ_CATEGORIES.filter(x=>x.id!=="all");
-  catOptions.forEach(x=>category.append(el("option",{value:x.id,textContent:x.label})));
+  FAQ_CATEGORIES.forEach(cat=>category.append(el("option",{value:cat,textContent:cat})));
   form.append(
     el("label",{},"分類",category),
     el("label",{},"問題（必填）",question),
     el("label",{},"答案（必填）",answer),
-    el("label",{className:"chk"},pending,el("span",{textContent:"這個答案目前尚未確認，儲存時標記為『待確認』"})),
-    info,
+    el("label",{},"關鍵字（可多個，以逗號或空白分隔）",keywords),
+    el("label",{className:"chk"},confirmed,el("span",{textContent:"這筆常見問題已確認"})),
+    note,
     el("div",{className:"faq-actions"},submit,cancel,msg)
   );
-  if(item){category.value=item.category;question.value=item.question;answer.value=item.answer;pending.checked=item.answerStatus==="待確認"||item.answerStatus===undefined;}
+  if(item){category.value=item.category||FAQ_CATEGORIES[0];question.value=item.question||"";answer.value=item.answer||"";keywords.value=normalizeKeywords(item.keywords).join("、");confirmed.checked=!!item.confirmed;}
+  category.onchange=()=>{
+    if(category.value==="商品資訊"){
+      answer.placeholder="商品資訊類會依目前商品資料動態產生內容，請不要直接填假資料。";
+      answer.value=item&&item.category==="商品資訊"?item.answer||"":"";
+    }else{
+      answer.placeholder="請輸入正確且確認過的答案。";
+      if(!item||item.category!=="更改資訊")answer.value="";
+    }
+  };
   form.onsubmit=e=>{
     e.preventDefault();
-    const qText=question.value.trim();
-    const aText=answer.value.trim();
-    const selectedCategory=category.value;
-    if(!selectedCategory){msg.textContent="請選擇分類。";return}
-    if(!qText){msg.textContent="請填寫問題。";return}
-    if(!aText){msg.textContent="請填寫答案。";return}
-    const data=loadFaq();
+    const cat=category.value;
+    const q=question.value.trim();
+    const a=answer.value.trim();
+    const kw=normalizeKeywords(keywords.value);
+    if(!cat){msg.textContent="請選擇分類。";return}
+    if(!q){msg.textContent="請填寫問題。";return}
+    if(!a && cat!=="商品資訊"){msg.textContent="請填寫答案。";return}
+    const data=loadFaqs();
     const next={
-      id:item?item.id:("faq-"+Date.now()+Math.random().toString(16).slice(2,6)),
-      category:selectedCategory,
-      question:qText,
-      answer:aText,
-      answerStatus:pending.checked?"待確認":"已確認",
+      id:item?item.id:("faq-"+Date.now()+Math.random().toString(16).slice(2,8)),
+      category:cat,
+      question:q,
+      answer:cat==="商品資訊" ? "" : a,
+      keywords:kw,
+      confirmed:confirmed.checked,
       isDemo:false
     };
     const idx=data.findIndex(x=>x.id===item?.id);
     if(idx>=0){data[idx]=Object.assign({},data[idx],next);}else{data.unshift(next);}
-    if(!saveFaq(data)){msg.textContent="瀏覽器儲存失敗，請確認儲存空間後再試。";return}
+    if(!saveFaqs(data)){msg.textContent="瀏覽器儲存失敗，請確認儲存空間後再試。";return}
     closeModal();render();
   };
-  const box=el("div",{className:"box faq-modal",role:"dialog"},el("h2",{textContent:item?"修改問答":"新增問答"}),form);
-  box.setAttribute("aria-modal","true");box.setAttribute("aria-label",item?"修改問答":"新增問答");
+  const box=el("div",{className:"box faq-modal",role:"dialog"},el("h2",{textContent:item?"修改常見問題":"新增常見問題"}),form);
+  box.setAttribute("aria-modal","true");box.setAttribute("aria-label",item?"修改常見問題":"新增常見問題");
   modal=el("div",{className:"overlay"},box);modal.onclick=e=>{if(e.target===modal)closeModal()};document.body.append(modal);question.focus();
 }
 function faqView(){
   const section=el("section",{className:"faq-shell"});
-  const titleWrap=el("div",{className:"faq-head"},el("h2",{textContent:"訂購常見問題助手"}),el("button",{type:"button",className:"chip",textContent:"＋ 新增問答",onclick:()=>openFaqModal()}));
-  const note=el("p",{className:"faq-note",textContent:"示範資料會明確標示為『示範資料』，且未確認內容會顯示『待確認』，不得自行編造店家規則、價格、地址或聯絡資訊。"});
-  const storageNote=el("p",{className:"faq-storage",textContent:"這份問答資料僅儲存在此瀏覽器的 localStorage，未跨裝置同步，並且清除瀏覽器資料後會消失。"});
-  const search=el("input",{type:"search",placeholder:"搜尋問題或答案"});
-  const qWrap=el("div",{className:"faq-toolbar"},search);
-  const catWrap=el("div",{className:"faq-cats"});
+  const head=el("div",{className:"faq-head"},el("h2",{textContent:"商家端常見問題助手"}),el("button",{type:"button",className:"chip",textContent:"＋ 新增問題",onclick:()=>openFaqModal()}));
+  const note=el("p",{className:"faq-note",textContent:"這裡是商家管理頁面，專門用來新增、編輯與確認常見問題。商品資訊類會依實際商品資料動態顯示，不會直接寫死示範內容。"});
+  const storageNote=el("p",{className:"faq-storage",textContent:"資料儲存在這台瀏覽器的 localStorage，僅作本機保存，不跨裝置同步，且清除瀏覽器資料後會消失。"});
+  const search=el("input",{type:"search",placeholder:"搜尋問題、答案或關鍵字"});
+  const categoryFilter=el("select",{},el("option",{value:"全部",textContent:"全部分類"}),...FAQ_CATEGORIES.map(c=>el("option",{value:c,textContent:c})));
+  const toolbar=el("div",{className:"faq-toolbar"},search,categoryFilter);
   const list=el("div",{className:"faq-list"});
-  let activeCategory="all";
-  const buildCategoryButtons=()=>{
-    catWrap.replaceChildren();
-    FAQ_CATEGORIES.forEach(cat=>{
-      const btn=el("button",{type:"button",className:"chip faq-cat",textContent:cat.label,"aria-pressed":String(cat.id===activeCategory)});
-      btn.onclick=()=>{activeCategory=cat.id;buildCategoryButtons();renderFaqList();};
-      catWrap.append(btn);
-    });
-  };
-  function renderFaqList(){
+  function renderList(){
     const query=search.value.trim().toLowerCase();
-    const items=loadFaq().filter(item=>{
-      const matchesCategory=activeCategory==="all"||item.category===activeCategory;
-      const text=(item.question+" "+item.answer+" "+(FAQ_LABELS[item.category]||"")).toLowerCase();
-      return matchesCategory && (!query || text.includes(query));
+    const category=categoryFilter.value;
+    const items=loadFaqs().filter(item=>{
+      const matchCat=category==="全部"||item.category===category;
+      const haystack=[item.question,item.answer,(item.keywords||[]).join(" "),item.category].join(" ").toLowerCase();
+      return matchCat && (!query || haystack.includes(query));
     });
     list.replaceChildren();
     if(!items.length){
-      list.append(el("div",{className:"faq-empty",textContent:query?"沒有符合搜尋條件的常見問題。":"目前沒有問答資料，請新增第一筆資料。"}));
+      list.append(el("div",{className:"faq-empty",textContent:query?"沒有符合條件的常見問題。":"目前沒有常見問題資料，請新增第一筆。"}));
       return;
     }
     items.forEach(item=>{
       const card=el("article",{className:"faq-item"});
       const button=el("button",{type:"button",className:"faq-q"});
-      const q = el("span",{className:"faq-q-text",textContent:item.question});
-      const chipWrap=el("span",{className:"faq-q-actions"},
-        el("span",{className:"faq-badge",textContent:item.isDemo?"示範資料":"問答資料"}),
-        el("span",{className:"faq-status-badge "+(item.answerStatus==="待確認"?"pending":"confirmed"),textContent:item.answerStatus||"待確認"}),
+      const q=el("span",{className:"faq-q-text",textContent:item.question||"未命名問題"});
+      const meta=el("span",{className:"faq-q-actions"},
+        el("span",{className:"faq-badge",textContent:item.category||"未分類"}),
+        el("span",{className:"faq-status-badge "+(item.confirmed?"confirmed":"pending"),textContent:item.confirmed?"已確認":"待確認"}),
         el("span",{className:"chevron",textContent:"▾"})
       );
-      button.append(el("span",{className:"faq-q-main"},q),chipWrap);
+      button.append(el("span",{className:"faq-q-main"},q),meta);
       const answerWrap=el("div",{className:"faq-answer"});
+      const answerText=resolveFaqAnswer(item);
       const answerBox=el("div",{className:"faq-answer-box"},
         el("div",{className:"faq-meta"},
-          el("span",{className:"faq-badge",textContent:FAQ_LABELS[item.category]||item.category}),
-          el("span",{className:"faq-status-badge "+(item.answerStatus==="待確認"?"pending":"confirmed"),textContent:item.answerStatus||"待確認"})
+          el("span",{className:"faq-badge",textContent:item.category||"未分類"}),
+          el("span",{className:"faq-status-badge "+(item.confirmed?"confirmed":"pending"),textContent:item.confirmed?"已確認":"待確認"})
         ),
-        el("p",{textContent:item.answer || "待確認"})
+        el("p",{textContent:answerText})
       );
+      const kwWrap=el("div",{className:"faq-keywords"},...(normalizeKeywords(item.keywords).map(k=>el("span",{className:"faq-keyword",textContent:k}))));
       const actions=el("div",{className:"faq-actions"},
-        el("button",{type:"button",className:"faq-btn",textContent:"修改",onclick:()=>openFaqModal(item)}),
-        el("button",{type:"button",className:"faq-btn danger",textContent:"刪除",onclick:()=>{const data=loadFaq();const next=data.filter(x=>x.id!==item.id);if(!saveFaq(next))return;render();}})
+        el("button",{type:"button",className:"faq-btn",textContent:"編輯",onclick:()=>openFaqModal(item)}),
+        el("button",{type:"button",className:"faq-btn danger",textContent:"刪除",onclick:()=>{const d=loadFaqs().filter(x=>x.id!==item.id);if(!saveFaqs(d))return;render();}})
       );
-      answerWrap.append(answerBox,actions);
+      answerWrap.append(answerBox,kwWrap,actions);
       button.onclick=()=>card.classList.toggle("open");
       card.append(button,answerWrap);
       list.append(card);
     });
   }
-  search.oninput=renderFaqList;
-  section.append(titleWrap,note,storageNote,qWrap,catWrap,list);
-  buildCategoryButtons();
-  renderFaqList();
+  search.oninput=renderList;
+  categoryFilter.onchange=renderList;
+  section.append(head,note,storageNote,toolbar,list);
+  renderList();
   return section;
 }
 
+// ===== 密碼：這裡存的是密碼的 SHA-256 雜湊值，不是密碼本身 =====
 const PASSWORD_HASH="99fe87bff5bfcb41eee807992f20018348c8af2a3716cd03c033459f4b81c6ad";
 async function sha256(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function unlockUI(){document.getElementById("gate").hidden=true;root.hidden=false;render()}
@@ -428,4 +470,5 @@ async function tryUnlock(){const m=document.getElementById("gate-msg");m.textCon
 document.getElementById("unlock").onclick=tryUnlock;
 document.getElementById("pw").addEventListener("keydown",e=>{if(e.key==="Enter")tryUnlock()});
 try{if(sessionStorage.getItem("unlocked")==="1")unlockUI()}catch(e){}
+
 </script></body></html>
